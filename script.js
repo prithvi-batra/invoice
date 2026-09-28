@@ -59,6 +59,12 @@ async function shareInvoice(){if(!validCustomer())return;try{setMessage('Prepari
 function printInvoice(){if(!validCustomer())return;render();window.print();}
 
 const today=new Date(); $('invoice-date').value=[today.getFullYear(),String(today.getMonth()+1).padStart(2,'0'),String(today.getDate()).padStart(2,'0')].join('-'); $('invoice-number').value=invoiceNumber();
-fields.forEach(id=>$(id).addEventListener('input',normalizeAndRender)); $('payment-status').addEventListener('change',render); $('add-item').addEventListener('click',()=>addItem());
+function addNewItem(){
+  addItem();
+  const newItem = itemRows().at(-1);
+  newItem.querySelector('.item-name-input').focus();
+  newItem.scrollIntoView({ behavior:'smooth', block:'nearest' });
+}
+fields.forEach(id=>$(id).addEventListener('input',normalizeAndRender)); $('payment-status').addEventListener('change',render); $('add-item').addEventListener('click',addNewItem);
 $('download-pdf').addEventListener('click',downloadPdf); $('share-invoice').addEventListener('click',shareInvoice); $('print-invoice').addEventListener('click',printInvoice);
 addItem(); render();
