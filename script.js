@@ -35,7 +35,7 @@ function render(){
   text('preview-invoice-number',$('invoice-number').value); text('preview-date',formatDate($('invoice-date').value));
   const paid=$('payment-status').value==='paid'; ['preview-status-top','preview-status-bottom'].forEach(id=>{const el=$(id);el.textContent=paid?'PAID':'PENDING';el.className=`status-badge ${paid?'paid':'pending'}`;});
   let subtotal=0, original=0, pieces=0;
-  $('preview-items').innerHTML=items.map(item=>{const mrp=item.price+200,total=item.qty*item.price;subtotal+=total;original+=item.qty*mrp;pieces+=item.qty;return `<tr><td>${item.number}</td><td><span class="item-name">${escapeHtml(item.name)}</span></td><td>${item.qty}</td><td><span class="mrp">${money(mrp)}</span></td><td><span class="sale-price">${money(item.price)}</span></td><td>${money(total)}</td></tr>`;}).join('');
+  $('preview-items').innerHTML=items.map(item=>{const mrp=item.price/0.85,total=item.qty*item.price;subtotal+=total;original+=item.qty*mrp;pieces+=item.qty;return `<tr><td>${item.number}</td><td><span class="item-name">${escapeHtml(item.name)}</span></td><td>${item.qty}</td><td><span class="mrp">${money(mrp)}</span></td><td><span class="sale-price">${money(item.price)}</span></td><td>${money(total)}</td></tr>`;}).join('');
   const savings=original-subtotal; text('preview-pieces',pieces); text('preview-subtotal',money(subtotal)); text('preview-savings',money(savings)); text('preview-grand-total',money(subtotal+shipping));
   $('preview-shipping-row').hidden=shipping<=0; text('preview-shipping',money(shipping));
 }
