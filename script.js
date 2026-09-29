@@ -45,10 +45,13 @@ function setMessage(message,type=''){const el=$('action-message');el.textContent
 async function createPdf(){
   render(); const paper=$('invoice-paper');
   if(!window.html2canvas||!window.jspdf) throw new Error('PDF tools are still loading. Please try again in a moment.');
-  const canvas=await html2canvas(paper,{scale:3,useCORS:true,backgroundColor:'#ffffff',logging:false});
-  const { jsPDF }=window.jspdf; const pdf=new jsPDF({orientation:'portrait',unit:'mm',format:'a5',compress:true});
-  pdf.addImage(canvas.toDataURL('image/jpeg',.95),'JPEG',0,0,148,210,undefined,'FAST');
-  return pdf;
+  paper.classList.add('pdf-mode');
+  try{
+    const canvas=await html2canvas(paper,{scale:3,useCORS:true,backgroundColor:'#ffffff',logging:false});
+    const { jsPDF }=window.jspdf; const pdf=new jsPDF({orientation:'portrait',unit:'mm',format:'a5',compress:true});
+    pdf.addImage(canvas.toDataURL('image/jpeg',.95),'JPEG',0,0,148,210,undefined,'FAST');
+    return pdf;
+  } finally { paper.classList.remove('pdf-mode'); }
 }
 async function downloadPdf(){if(!validCustomer())return;try{setMessage('Preparing your PDF…');const pdf=await createPdf();pdf.save(`Invoice-${$('invoice-number').value}.pdf`);setMessage('Your PDF download has started.','success');}catch(e){setMessage(e.message,'error');}}
 async function shareInvoice(){if(!validCustomer())return;try{setMessage('Preparing your invoice…');const pdf=await createPdf();const file=new File([pdf.output('blob')],`Invoice-${$('invoice-number').value}.pdf`,{type:'application/pdf'});const summary=`Invoice ${$('invoice-number').value} for ${$('customer-name').value} — ${$('preview-grand-total').textContent}`;
@@ -57,6 +60,9 @@ async function shareInvoice(){if(!validCustomer())return;try{setMessage('Prepari
   else {pdf.save(`Invoice-${$('invoice-number').value}.pdf`);try{await navigator.clipboard.writeText(summary);setMessage('PDF downloaded and invoice summary copied.','success');}catch{setMessage('File sharing is unavailable here, so the PDF was downloaded.','success');}}
 }catch(e){if(e.name==='AbortError')setMessage('Sharing cancelled.');else setMessage('Could not share the invoice. Please download the PDF instead.','error');}}
 function printInvoice(){if(!validCustomer())return;render();window.print();}
+function invoiceFile(){return {version:1,invoiceNumber:$('invoice-number').value,date:$('invoice-date').value,paymentStatus:$('payment-status').value,customerName:$('customer-name').value,customerPhone:$('customer-phone').value,shipping:$('shipping').value,items:currentItems()};}
+function saveInvoice(){const content=JSON.stringify(invoiceFile(),null,2);const url=URL.createObjectURL(new Blob([content],{type:'application/json'}));const link=document.createElement('a');link.href=url;link.download=`Invoice-${$('invoice-number').value}.json`;link.click();URL.revokeObjectURL(url);setMessage('Invoice file saved. You can open it later to continue editing.','success');}
+function openInvoice(event){const file=event.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=()=>{try{const data=JSON.parse(reader.result);if(!Array.isArray(data.items))throw new Error();$('invoice-number').value=data.invoiceNumber||invoiceNumber();$('invoice-date').value=data.date||$('invoice-date').value;$('payment-status').value=data.paymentStatus==='pending'?'pending':'paid';$('customer-name').value=data.customerName||'Customer';$('customer-phone').value=data.customerPhone||'';$('shipping').value=Math.max(0,Number(data.shipping)||0);$('item-editor-list').innerHTML='';(data.items.length?data.items:[{}]).forEach(item=>addItem(item.name||'',Math.max(1,Number(item.qty)||1),Math.max(0,Number(item.price)||0)));render();setMessage('Saved invoice opened. You can edit it now.','success');}catch{setMessage('That file is not a valid Quick Invoice file.','error');}event.target.value='';};reader.readAsText(file);}
 
 const today=new Date(); $('invoice-date').value=[today.getFullYear(),String(today.getMonth()+1).padStart(2,'0'),String(today.getDate()).padStart(2,'0')].join('-'); $('invoice-number').value=invoiceNumber();
 function addNewItem(){
@@ -67,4 +73,5 @@ function addNewItem(){
 }
 fields.forEach(id=>$(id).addEventListener('input',normalizeAndRender)); $('payment-status').addEventListener('change',render); $('add-item').addEventListener('click',addNewItem);
 $('download-pdf').addEventListener('click',downloadPdf); $('share-invoice').addEventListener('click',shareInvoice); $('print-invoice').addEventListener('click',printInvoice);
+$('save-invoice').addEventListener('click',saveInvoice); $('open-invoice').addEventListener('change',openInvoice);
 addItem(); render();
