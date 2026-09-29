@@ -59,7 +59,23 @@ async function shareInvoice(){if(!validCustomer())return;try{setMessage('Prepari
   else if(navigator.share){await navigator.share({title:'Quick Invoice',text:summary});setMessage('Invoice summary shared.','success');}
   else {pdf.save(`Invoice-${$('invoice-number').value}.pdf`);try{await navigator.clipboard.writeText(summary);setMessage('PDF downloaded and invoice summary copied.','success');}catch{setMessage('File sharing is unavailable here, so the PDF was downloaded.','success');}}
 }catch(e){if(e.name==='AbortError')setMessage('Sharing cancelled.');else setMessage('Could not share the invoice. Please download the PDF instead.','error');}}
-function printInvoice(){if(!validCustomer())return;render();window.print();}
+async function printInvoice(){
+  if(!validCustomer())return;
+  const isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+  if(!isIOS){render();window.print();return;}
+  try{
+    setMessage('Preparing a printer-ready PDF…');
+    const pdf=await createPdf();
+    const file=new File([pdf.output('blob')],`Invoice-${$('invoice-number').value}.pdf`,{type:'application/pdf'});
+    if(navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})){
+      await navigator.share({title:'Quick Invoice',files:[file]});
+      setMessage('Choose Print from the iPhone share menu for a clean invoice.','success');
+    }else{
+      pdf.save(`Invoice-${$('invoice-number').value}.pdf`);
+      setMessage('PDF downloaded. Open it in Files, then choose Share → Print.','success');
+    }
+  }catch(e){if(e.name!=='AbortError')setMessage('Could not prepare the printer-ready PDF. Please use Download PDF.','error');}
+}
 function invoiceFile(){return {version:1,invoiceNumber:$('invoice-number').value,date:$('invoice-date').value,paymentStatus:$('payment-status').value,customerName:$('customer-name').value,customerPhone:$('customer-phone').value,shipping:$('shipping').value,items:currentItems()};}
 function saveInvoice(){const content=JSON.stringify(invoiceFile(),null,2);const url=URL.createObjectURL(new Blob([content],{type:'application/json'}));const link=document.createElement('a');link.href=url;link.download=`Invoice-${$('invoice-number').value}.json`;link.click();URL.revokeObjectURL(url);setMessage('Invoice file saved. You can open it later to continue editing.','success');}
 function openInvoice(event){const file=event.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=()=>{try{const data=JSON.parse(reader.result);if(!Array.isArray(data.items))throw new Error();$('invoice-number').value=data.invoiceNumber||invoiceNumber();$('invoice-date').value=data.date||$('invoice-date').value;$('payment-status').value=data.paymentStatus==='pending'?'pending':'paid';$('customer-name').value=data.customerName||'Customer';$('customer-phone').value=data.customerPhone||'';$('shipping').value=Math.max(0,Number(data.shipping)||0);$('item-editor-list').innerHTML='';(data.items.length?data.items:[{}]).forEach(item=>addItem(item.name||'',Math.max(1,Number(item.qty)||1),Math.max(0,Number(item.price)||0)));render();setMessage('Saved invoice opened. You can edit it now.','success');}catch{setMessage('That file is not a valid Quick Invoice file.','error');}event.target.value='';};reader.readAsText(file);}
